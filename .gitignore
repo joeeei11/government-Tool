@@ -1,0 +1,13 @@
+.scratch/
+docs/
+AGENTS.md
+CLAUDE.md
+CONTEXT.md
+PROJECT-STATUS.md
+project.private.config.json
+node_modules/
+coverage/
+dist/
+*.log
+simulator-check.png
+wechatide-skill-*.zip

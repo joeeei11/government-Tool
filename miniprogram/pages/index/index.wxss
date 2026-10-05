@@ -1,0 +1,22 @@
+.page { min-height: 100vh; padding: 48rpx 36rpx 80rpx; box-sizing: border-box; }
+.heading { margin: 20rpx 0 56rpx; }
+.eyebrow, .title, .section-title, .muted, .label { display: block; }
+.eyebrow { color: #18745b; font-size: 24rpx; }
+.title { margin-top: 10rpx; font-size: 52rpx; font-weight: 600; color: #172720; }
+.section { padding: 32rpx 0; border-top: 1rpx solid #dbe2df; }
+.section-title { font-size: 34rpx; font-weight: 600; color: #172720; }
+.muted { margin-top: 10rpx; color: #66746d; font-size: 26rpx; }
+.count { color: #66746d; font-size: 26rpx; font-weight: 400; }
+.label { margin-top: 32rpx; margin-bottom: 12rpx; font-size: 26rpx; color: #344c40; }
+.name-input { height: 88rpx; padding: 0 24rpx; background: #fff; border: 1rpx solid #cbd7d0; border-radius: 8rpx; font-size: 30rpx; }
+button.primary, button.secondary { margin: 28rpx 0 0; border-radius: 8rpx; font-size: 28rpx; }
+button.primary { color: #fff; background: #18745b; }
+button.secondary { color: #174d3d; background: #e8f1ec; }
+.notice { padding: 20rpx 24rpx; margin: 0 0 24rpx; background: #eef4f0; color: #344c40; font-size: 26rpx; }
+.error { background: #fcebea; color: #a3312a; }
+.welcome, .row, .request-row, .actions { display: flex; align-items: center; justify-content: space-between; }
+.refresh { width: 72rpx; height: 72rpx; margin: 0; padding: 0; line-height: 70rpx; border-radius: 8rpx; background: #e8f1ec; color: #174d3d; font-size: 42rpx; }
+.row, .request-row { min-height: 88rpx; border-bottom: 1rpx solid #edf0ee; font-size: 28rpx; }
+.request-name { max-width: 36%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.actions { gap: 12rpx; }
+.actions button { margin: 0; min-width: 104rpx; }

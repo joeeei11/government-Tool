@@ -1,0 +1,44 @@
+<view class="page">
+  <view class="heading"><text class="eyebrow">政府协作</text><text class="title">办公室</text></view>
+  <view wx:if="{{error}}" class="notice error">{{error}}</view>
+  <view wx:if="{{!signedIn}}" class="section">
+    <text class="section-title">成员登录</text><text class="muted">登录后可申请加入办公室。</text>
+    <button class="primary" loading="{{loading}}" disabled="{{loading}}" bindtap="signIn">微信登录</button>
+  </view>
+  <view wx:elif="{{!sessionReady}}" class="section">
+    <text class="section-title">暂时无法读取成员状态</text>
+    <button class="secondary" bindtap="refresh">重试</button>
+  </view>
+  <view wx:elif="{{status === 'guest' || status === 'rejected'}}" class="section">
+    <text class="section-title">{{status === 'rejected' ? '重新申请加入' : '申请加入'}}</text>
+    <text wx:if="{{status === 'rejected'}}" class="notice">上次申请未通过，您可以重新提交。</text>
+    <text class="label">姓名</text>
+    <input class="name-input" maxlength="20" value="{{name}}" placeholder="请输入真实姓名" bindinput="onNameInput" />
+    <button class="primary" loading="{{loading}}" disabled="{{loading}}" bindtap="requestJoin">提交申请</button>
+  </view>
+  <view wx:elif="{{status === 'pending'}}" class="section">
+    <text class="section-title">等待管理员审核</text><text class="muted">申请人：{{request.name}}</text>
+    <button class="secondary" bindtap="refresh">刷新状态</button>
+  </view>
+  <view wx:elif="{{status === 'approved'}}">
+    <view class="section welcome">
+      <view><text class="section-title">{{member.name}}</text><text class="muted">{{member.role === 'admin' ? '管理员' : '办公室成员'}}</text></view>
+      <button class="refresh" aria-label="刷新" bindtap="refresh">↻</button>
+    </view>
+    <view class="section">
+      <text class="section-title">办公室成员 <text class="count">{{members.length}} / 5</text></text>
+      <view wx:for="{{members}}" wx:key="id" class="row"><text>{{item.name}}</text><text class="muted">{{item.role === 'admin' ? '管理员' : '成员'}}</text></view>
+    </view>
+    <view wx:if="{{member.role === 'admin'}}" class="section">
+      <text class="section-title">待审核申请 <text class="count">{{requests.length}}</text></text>
+      <text wx:if="{{!requests.length}}" class="muted">暂无待审核申请</text>
+      <view wx:for="{{requests}}" wx:key="id" class="request-row">
+        <text class="request-name">{{item.name}}</text>
+        <view class="actions">
+          <button size="mini" class="secondary" data-id="{{item.id}}" data-decision="reject" disabled="{{!!busyId}}" bindtap="review">拒绝</button>
+          <button size="mini" class="primary" data-id="{{item.id}}" data-decision="approve" loading="{{busyId === item.id}}" disabled="{{!!busyId}}" bindtap="review">批准</button>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
