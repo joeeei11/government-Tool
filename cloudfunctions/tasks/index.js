@@ -10,9 +10,11 @@ exports.main = async event => {
     const service = createService(cloud.database(), () => new Date().toISOString());
     const actions = {
       list: () => service.list(openid),
+      workbox: () => service.listWorkbox(openid),
       get: () => service.get(openid, event.id),
       create: () => service.create(openid, event.task),
       update: () => service.update(openid, event.id, event.task)
+      ,deleteDraft: () => service.deleteDraft(openid, event.id)
     };
     if (!Object.prototype.hasOwnProperty.call(actions, event.action)) throw new TaskError('INVALID_ACTION');
     return { ok: true, data: await actions[event.action]() };

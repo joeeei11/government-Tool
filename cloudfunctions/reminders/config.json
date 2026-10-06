@@ -1,0 +1,5 @@
+{
+  "triggers": [
+    { "name": "deadline-hourly", "type": "timer", "config": "0 0 * * * * *" }
+  ]
+}

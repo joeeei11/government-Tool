@@ -28,6 +28,7 @@ button.secondary { color: #174d3d; background: #e8f1ec; }
 .task-line, .detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16rpx; }
 .task-title { display: block; min-width: 0; flex: 1; color: #172720; font-size: 30rpx; font-weight: 550; overflow-wrap: anywhere; }
 .task-meta { display: block; margin-top: 8rpx; color: #66746d; font-size: 24rpx; }
+.deadline-reason { display: block; margin-top: 6rpx; color: #a04424; font-size: 24rpx; }
 .status { flex: none; color: #18745b; font-size: 24rpx; }
 .filter-block { padding: 16rpx 0; border-top: 1rpx solid #e3e9e5; }
 .filter-label { display: block; margin-bottom: 14rpx; color: #66746d; font-size: 24rpx; }
@@ -70,7 +71,16 @@ button.secondary { color: #174d3d; background: #e8f1ec; }
 .file-name { color: #14533f; }
 .status-actions { display: flex; gap: 12rpx; }
 .status-actions button { flex: 1; min-width: 0; }
+.reminder-actions { display: flex; gap: 12rpx; }
+.reminder-actions button { flex: 1; min-width: 0; }
 .handoff-item { padding: 22rpx 0; border-bottom: 1rpx solid #e8edeb; font-size: 27rpx; overflow-wrap: anywhere; }
 .handoff-item text { display: block; margin-top: 10rpx; white-space: pre-wrap; }
 .handoff-item .handoff-title { margin-top: 0; font-weight: 600; color: #172720; }
 .handoff-form { padding: 12rpx 0 26rpx; }
+.insight-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.insight-head button { margin: 0; flex: none; }
+.insight-summary { display: block; padding: 24rpx 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: 28rpx; }
+.risk-row { padding: 22rpx 0; border-bottom: 1rpx solid #e8edeb; font-size: 26rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.risk-row text { display: block; }
+.risk-title { font-weight: 600; color: #a04424; }
+.insight-answer { margin-top: 28rpx; border-top: 1rpx solid #dbe2df; }

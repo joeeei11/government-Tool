@@ -29,6 +29,9 @@ function fakeDatabase() {
         },
         skip(offset) {
           return { limit(size) { return { async get() { return { data: [...rows(name).values()].slice(offset, offset + size) }; } }; } };
+        },
+        where(query) {
+          return { skip(offset) { return { limit(size) { return { async get() { return { data: [...rows(name).values()].filter(row => Object.entries(query).every(([key, value]) => row[key] === value)).slice(offset, offset + size) }; } }; } }; } };
         }
       };
     },
@@ -86,4 +89,12 @@ test('all approved members can edit subtasks up to three levels; root editing is
   await service.update('alice', second, { title: 'Changed' });
   assert.equal((await service.get('bob', second)).title, 'Changed');
   await assert.rejects(service.update('alice', second, { parentId: third }), { code: 'INVALID_TASK' });
+});
+
+test('workbox endpoint excludes an already confirmed major task for that member', async () => {
+  const { db, service } = await setup();
+  await db.collection('tasks').doc('major').set({ data: { title: 'Major', status: 'awaiting_confirmation', assigneeId: 'bob', collaboratorIds: [], creatorId: 'alice', confirmationRule: 'major', updatedAt: '2026-10-06T09:00:00.000Z' } });
+  await db.collection('office_state').doc('vote').set({ data: { kind: 'task_confirmation', taskId: 'major', memberId: 'alice' } });
+  assert.equal((await service.listWorkbox('alice')).confirmation.length, 0);
+  assert.equal((await service.listWorkbox('bob')).confirmation.length, 1);
 });

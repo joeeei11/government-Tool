@@ -54,8 +54,9 @@ function createService(db, cloud, now) {
     const [records, attachments, history, handoffs] = await Promise.all([
       byTask('execution_record', taskId), byTask('task_attachment', taskId), byTask('execution_event', taskId), byTask('task_handoff', taskId)
     ]);
-    const progress = children.length ? Math.round(children.filter(child => ['completed', 'archived'].includes(child.status)).length * 100 / children.length) : (task.status === 'completed' || task.status === 'archived' ? 100 : 0);
-    return { progress, childCount: children.length, completedChildren: children.filter(child => ['completed', 'archived'].includes(child.status)).length,
+    const doneStatuses = ['awaiting_confirmation', 'completed', 'archived'];
+    const progress = children.length ? Math.round(children.filter(child => doneStatuses.includes(child.status)).length * 100 / children.length) : (doneStatuses.includes(task.status) ? 100 : 0);
+    return { progress, childCount: children.length, completedChildren: children.filter(child => doneStatuses.includes(child.status)).length,
       records: records.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
       attachments: attachments.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(({ fileId, ...item }) => item),
       history: history.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
@@ -81,14 +82,71 @@ function createService(db, cloud, now) {
     if (openid !== task.assigneeId || !['in_progress', 'completed'].includes(status) || task.status === 'archived') throw new ExecutionError('FORBIDDEN');
     if (task.status === 'awaiting_handoff') throw new ExecutionError('INVALID_STATE');
     if (task.status === status) throw new ExecutionError('INVALID_STATE');
+    if (status === 'completed' && task.status !== 'in_progress') throw new ExecutionError('INVALID_STATE');
     const timestamp = now();
     await db.runTransaction(async transaction => {
       const current = await read(transaction, 'tasks', taskId);
       if (!current || current.status !== task.status) throw new ExecutionError('INVALID_STATE');
-      await transaction.collection('tasks').doc(taskId).update({ data: { status, updatedAt: timestamp } });
+      const nextStatus = status === 'completed' ? 'awaiting_confirmation' : status;
+      await transaction.collection('tasks').doc(taskId).update({ data: { status: nextStatus, updatedAt: timestamp } });
       await transaction.collection(COLLECTION).add({ data: { kind: 'execution_event', taskId, action: 'status_changed', from: task.status, to: status, actorId: openid, createdAt: timestamp } });
     });
-    return { taskId, status };
+    return { taskId, status: status === 'completed' ? 'awaiting_confirmation' : status };
+  }
+
+  async function confirmationContext(openid, taskId) {
+    const { member, memberIds } = await officeMember(openid);
+    const task = await read(db, 'tasks', taskId);
+    if (!task) throw new ExecutionError('NOT_FOUND');
+    if (task.status !== 'awaiting_confirmation') throw new ExecutionError('INVALID_STATE');
+    const eligible = task.confirmationRule === 'ordinary' ? task.assigneeId === openid : task.confirmationRule === 'important' ? task.confirmerId === openid : memberIds.includes(openid);
+    if (!eligible) throw new ExecutionError('FORBIDDEN');
+    return { task, member, memberIds };
+  }
+
+  async function confirm(openid, taskId) {
+    const { task, memberIds } = await confirmationContext(openid, taskId);
+    const timestamp = now();
+    return db.runTransaction(async transaction => {
+      const current = await read(transaction, 'tasks', taskId);
+      if (!current || current.status !== 'awaiting_confirmation') throw new ExecutionError('INVALID_STATE');
+      const existing = await byTask('task_confirmation', taskId);
+      if (existing.some(item => item.memberId === openid)) throw new ExecutionError('INVALID_STATE');
+      await transaction.collection(COLLECTION).add({ data: { kind: 'task_confirmation', taskId, memberId: openid, createdAt: timestamp } });
+      const required = task.confirmationRule === 'major' ? 5 : 1;
+      const confirmedCount = existing.length + 1;
+      const complete = confirmedCount >= required;
+      await transaction.collection(COLLECTION).add({ data: { kind: 'execution_event', taskId, action: 'task_confirmed', actorId: openid, createdAt: timestamp } });
+      if (complete) await transaction.collection('tasks').doc(taskId).update({ data: { status: 'completed', updatedAt: timestamp } });
+      return { taskId, confirmed: complete, confirmations: confirmedCount, required };
+    });
+  }
+
+  async function returnTask(openid, taskId, reason) {
+    const { task } = await confirmationContext(openid, taskId);
+    const text = typeof reason === 'string' ? reason.trim() : '';
+    if (!text || text.length > 2000) throw new ExecutionError('INVALID_TEXT');
+    const timestamp = now();
+    await db.runTransaction(async transaction => {
+      const current = await read(transaction, 'tasks', taskId);
+      if (!current || current.status !== 'awaiting_confirmation') throw new ExecutionError('INVALID_STATE');
+      await transaction.collection('tasks').doc(taskId).update({ data: { status: 'in_progress', updatedAt: timestamp } });
+      await transaction.collection(COLLECTION).add({ data: { kind: 'execution_event', taskId, action: 'task_returned', reason: text, actorId: openid, createdAt: timestamp } });
+    });
+    return { taskId };
+  }
+
+  async function archive(openid, taskId) {
+    const { task, member } = await context(openid, taskId);
+    if (task.status !== 'completed' || (task.creatorId !== openid && member.role !== 'admin')) throw new ExecutionError('FORBIDDEN');
+    const timestamp = now();
+    await db.runTransaction(async transaction => {
+      const current = await read(transaction, 'tasks', taskId);
+      if (!current || current.status !== 'completed') throw new ExecutionError('INVALID_STATE');
+      await transaction.collection('tasks').doc(taskId).update({ data: { status: 'archived', updatedAt: timestamp } });
+      await transaction.collection(COLLECTION).add({ data: { kind: 'execution_event', taskId, action: 'task_archived', actorId: openid, createdAt: timestamp } });
+    });
+    return { taskId };
   }
 
   async function startHandoff(openid, taskId) {
@@ -240,7 +298,7 @@ function createService(db, cloud, now) {
     return { url, name: attachment.name, mimeType: attachment.mimeType };
   }
 
-  return { summary, addNote, setStatus, startHandoff, submitHandoff, acceptHandoff, beginUpload, uploadChunk, finishUpload, attachmentUrl };
+  return { summary, addNote, setStatus, confirm, returnTask, archive, startHandoff, submitHandoff, acceptHandoff, beginUpload, uploadChunk, finishUpload, attachmentUrl };
 }
 
 module.exports = { createService, ExecutionError, CHUNK_SIZE, MAX_SIZE };

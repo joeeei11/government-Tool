@@ -4,8 +4,37 @@ class TaskError extends Error {
 
 const TYPES = ['routine', 'special', 'urgent'];
 const PRIORITIES = ['low', 'normal', 'high'];
-const STATUSES = ['in_progress', 'awaiting_confirmation', 'awaiting_handoff', 'completed', 'archived'];
+const STATUSES = ['draft', 'in_progress', 'awaiting_confirmation', 'awaiting_handoff', 'completed', 'archived'];
 const RULES = ['ordinary', 'important', 'major'];
+const ACTIVE_DEADLINES = ['in_progress', 'awaiting_handoff'];
+
+function deadline(task, instant) {
+  if (!ACTIVE_DEADLINES.includes(task.status) || !task.dueDate) return null;
+  const due = Date.parse(`${task.dueDate}T23:59:59+08:00`);
+  if (!Number.isFinite(due)) return null;
+  const remaining = due - instant;
+  if (remaining < 0) return { state: 'overdue', reason: `已于 ${task.dueDate} 截止` };
+  const localToday = new Date(instant + 8 * 3600000).toISOString().slice(0, 10);
+  if (task.dueDate === localToday) return { state: 'soon', reason: `今天截止：${task.dueDate}` };
+  const ordinaryLimit = new Date(`${localToday}T00:00:00Z`).valueOf() + 3 * 86400000;
+  if (task.type === 'urgent' ? remaining <= 24 * 3600000 : Date.parse(`${task.dueDate}T00:00:00Z`) <= ordinaryLimit) return { state: 'soon', reason: `${task.type === 'urgent' ? '紧急任务，截止前 24 小时' : '截止前 3 天'}：${task.dueDate}` };
+  return null;
+}
+
+function workbox(tasks, openid, instant, confirmed = new Set()) {
+  const today = new Date(instant + 8 * 3600000).toISOString().slice(0, 10);
+  const mine = tasks.filter(task => task.assigneeId === openid || (task.collaboratorIds || []).includes(openid));
+  const withDeadline = mine.map(task => ({ ...task, deadline: deadline(task, instant) }));
+  const byDue = (a, b) => a.dueDate.localeCompare(b.dueDate) || a._id.localeCompare(b._id);
+  const canConfirm = task => task.confirmationRule === 'major' ? !confirmed.has(task._id) : task.confirmationRule === 'important' ? task.confirmerId === openid : task.assigneeId === openid;
+  return {
+    today: withDeadline.filter(task => task.deadline && (task.deadline.state === 'overdue' || task.dueDate === today)).sort(byDue),
+    soon: withDeadline.filter(task => task.deadline && task.deadline.state === 'soon' && task.dueDate !== today).sort(byDue),
+    confirmation: tasks.filter(task => task.status === 'awaiting_confirmation' && canConfirm(task)).sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)),
+    handoff: tasks.filter(task => task.status === 'awaiting_handoff' && (task.assigneeId === openid || (task.handoffReady && (!task.handoffSuccessorId || task.handoffSuccessorId === openid)))).sort((a, b) => a.updatedAt.localeCompare(b.updatedAt)),
+    recent: tasks.filter(task => task.status !== 'draft' && [task.creatorId, task.assigneeId, ...(task.collaboratorIds || [])].includes(openid)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5)
+  };
+}
 
 function missing(error) {
   return error && (error.code === 'DOCUMENT_NOT_FOUND' || error.errCode === -502005);
@@ -75,6 +104,18 @@ function createService(db, now) {
     return tasks.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
+  async function listWorkbox(openid) {
+    await member(openid);
+    const tasks = await allTasks();
+    const confirmations = [];
+    for (let offset = 0; ; offset += 100) {
+      const batch = (await db.collection('office_state').where({ kind: 'task_confirmation', memberId: openid }).skip(offset).limit(100).get()).data;
+      confirmations.push(...batch);
+      if (batch.length < 100) break;
+    }
+    return workbox(tasks, openid, Date.parse(now()), new Set(confirmations.map(item => item.taskId)));
+  }
+
   async function get(openid, id) {
     await member(openid);
     if (typeof id !== 'string' || !id) throw new TaskError('NOT_FOUND');
@@ -102,7 +143,7 @@ function createService(db, now) {
 
   async function create(openid, input) {
     const { memberIds } = await member(openid);
-    const task = normalize({ type: 'routine', priority: 'normal', dueDate: '', description: '', collaboratorIds: [], parentId: '', confirmationRule: 'ordinary', ...input, status: 'in_progress' });
+    const task = normalize({ type: 'routine', priority: 'normal', dueDate: '', description: '', collaboratorIds: [], parentId: '', confirmationRule: 'ordinary', ...input, status: input && input.status === 'draft' ? 'draft' : 'in_progress' });
     checkPeople(task, memberIds);
     const depth = await parentDepth(task.parentId);
     const timestamp = now();
@@ -119,6 +160,7 @@ function createService(db, now) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TaskError('INVALID_TASK');
     const allowed = ['title', 'description', 'assigneeId', 'collaboratorIds', 'type', 'priority', 'dueDate', 'confirmationRule', 'confirmerId'];
     if (Object.keys(input).some(key => !allowed.includes(key))) throw new TaskError('INVALID_TASK');
+    if ((Object.prototype.hasOwnProperty.call(input, 'confirmationRule') || Object.prototype.hasOwnProperty.call(input, 'confirmerId')) && old.creatorId !== openid && person.role !== 'admin') throw new TaskError('FORBIDDEN');
     const task = normalize(input, old);
     checkPeople(task, memberIds);
     await db.runTransaction(async transaction => {
@@ -129,7 +171,22 @@ function createService(db, now) {
     return { id };
   }
 
-  return { list, get, create, update };
+  async function deleteDraft(openid, id) {
+    const { person } = await member(openid);
+    const task = await read(db, 'tasks', id);
+    if (!task) throw new TaskError('NOT_FOUND');
+    if (task.status !== 'draft' || (task.creatorId !== openid && person.role !== 'admin')) throw new TaskError('INVALID_STATE');
+    const timestamp = now();
+    await db.runTransaction(async transaction => {
+      const current = await read(transaction, 'tasks', id);
+      if (!current || current.status !== 'draft') throw new TaskError('INVALID_STATE');
+      await transaction.collection('tasks').doc(id).remove();
+      await transaction.collection('office_state').add({ data: { kind: 'task_event', taskId: id, action: 'draft_deleted', actorId: openid, createdAt: timestamp } });
+    });
+    return { id };
+  }
+
+  return { list, listWorkbox, get, create, update, deleteDraft };
 }
 
-module.exports = { createService, TaskError };
+module.exports = { createService, TaskError, deadline, workbox };
