@@ -1,44 +1,121 @@
+<template name="taskRows">
+  <view wx:for="{{items}}" wx:key="_id" class="task-row" data-id="{{item._id}}" bindtap="selectTask">
+    <view class="task-line"><text class="task-title">{{item.title}}</text><text class="status">{{item.statusName}}</text></view>
+    <text class="task-meta">{{item.assigneeName}} · {{item.typeName}} · {{item.priorityName}} · {{item.dueDate || '无截止日期'}}</text>
+  </view>
+</template>
 <view class="page">
-  <view class="heading"><text class="eyebrow">政府协作</text><text class="title">办公室</text></view>
+  <view class="heading"><text class="eyebrow">政府协作</text><text class="title">{{status === 'approved' ? (view === 'workbox' ? '工作箱' : view === 'tasks' ? '任务' : view === 'new' ? (editing ? '编辑任务' : '新建任务') : view === 'detail' ? '任务详情' : '我的') : '办公室'}}</text></view>
   <view wx:if="{{error}}" class="notice error">{{error}}</view>
-  <view wx:if="{{!signedIn}}" class="section">
-    <text class="section-title">成员登录</text><text class="muted">登录后可申请加入办公室。</text>
-    <button class="primary" loading="{{loading}}" disabled="{{loading}}" bindtap="signIn">微信登录</button>
-  </view>
-  <view wx:elif="{{!sessionReady}}" class="section">
-    <text class="section-title">暂时无法读取成员状态</text>
-    <button class="secondary" bindtap="refresh">重试</button>
-  </view>
-  <view wx:elif="{{status === 'guest' || status === 'rejected'}}" class="section">
-    <text class="section-title">{{status === 'rejected' ? '重新申请加入' : '申请加入'}}</text>
-    <text wx:if="{{status === 'rejected'}}" class="notice">上次申请未通过，您可以重新提交。</text>
-    <text class="label">姓名</text>
-    <input class="name-input" maxlength="20" value="{{name}}" placeholder="请输入真实姓名" bindinput="onNameInput" />
-    <button class="primary" loading="{{loading}}" disabled="{{loading}}" bindtap="requestJoin">提交申请</button>
-  </view>
-  <view wx:elif="{{status === 'pending'}}" class="section">
-    <text class="section-title">等待管理员审核</text><text class="muted">申请人：{{request.name}}</text>
-    <button class="secondary" bindtap="refresh">刷新状态</button>
-  </view>
-  <view wx:elif="{{status === 'approved'}}">
-    <view class="section welcome">
-      <view><text class="section-title">{{member.name}}</text><text class="muted">{{member.role === 'admin' ? '管理员' : '办公室成员'}}</text></view>
-      <button class="refresh" aria-label="刷新" bindtap="refresh">↻</button>
+  <view wx:if="{{!signedIn}}" class="section"><text class="section-title">成员登录</text><text class="muted">登录后可申请加入办公室。</text><button class="primary" loading="{{loading}}" disabled="{{loading}}" bindtap="signIn">微信登录</button></view>
+  <view wx:elif="{{!sessionReady}}" class="section"><text class="section-title">暂时无法读取成员状态</text><button class="secondary" bindtap="refresh">重试</button></view>
+  <view wx:elif="{{status === 'guest' || status === 'rejected'}}" class="section"><text class="section-title">{{status === 'rejected' ? '重新申请加入' : '申请加入'}}</text><text wx:if="{{status === 'rejected'}}" class="notice">上次申请未通过，您可以重新提交。</text><text class="label">姓名</text><input class="field" maxlength="20" value="{{name}}" placeholder="请输入真实姓名" bindinput="onNameInput" /><button class="primary" loading="{{loading}}" disabled="{{loading}}" bindtap="requestJoin">提交申请</button></view>
+  <view wx:elif="{{status === 'pending'}}" class="section"><text class="section-title">等待管理员审核</text><text class="muted">申请人：{{request.name}}</text><button class="secondary" bindtap="refresh">刷新状态</button></view>
+  <block wx:elif="{{status === 'approved'}}">
+    <view wx:if="{{view === 'workbox'}}">
+      <view class="section"><text class="section-title">今日任务 <text class="count">{{workbox.today.length || 0}}</text></text><text wx:if="{{!workbox.today.length}}" class="empty">暂无今日任务</text><template is="taskRows" data="{{items: workbox.today}}" /></view>
+      <view class="section"><text class="section-title">临近截止 <text class="count">{{workbox.soon.length || 0}}</text></text><text wx:if="{{!workbox.soon.length}}" class="empty">近三天暂无截止任务</text><template is="taskRows" data="{{items: workbox.soon}}" /></view>
+      <view class="section"><text class="section-title">待确认 <text class="count">{{workbox.confirmation.length || 0}}</text></text><text wx:if="{{!workbox.confirmation.length}}" class="empty">暂无待确认任务</text><template is="taskRows" data="{{items: workbox.confirmation}}" /></view>
+      <view class="section"><text class="section-title">待交接 <text class="count">{{workbox.handoff.length || 0}}</text></text><text wx:if="{{!workbox.handoff.length}}" class="empty">暂无待交接任务</text><template is="taskRows" data="{{items: workbox.handoff}}" /></view>
+      <view class="section"><text class="section-title">最近更新</text><text wx:if="{{!workbox.recent.length}}" class="empty">暂无任务更新</text><template is="taskRows" data="{{items: workbox.recent}}" /></view>
     </view>
-    <view class="section">
-      <text class="section-title">办公室成员 <text class="count">{{members.length}} / 5</text></text>
-      <view wx:for="{{members}}" wx:key="id" class="row"><text>{{item.name}}</text><text class="muted">{{item.role === 'admin' ? '管理员' : '成员'}}</text></view>
+    <view wx:elif="{{view === 'tasks'}}">
+      <view class="filter-block"><text class="filter-label">状态</text><scroll-view scroll-x class="chip-scroll"><view class="chip-line">
+        <view class="chip {{filter.status === '' ? 'active' : ''}}" data-field="status" data-value="" bindtap="setFilter">全部</view>
+        <view class="chip {{filter.status === 'in_progress' ? 'active' : ''}}" data-field="status" data-value="in_progress" bindtap="setFilter">进行中</view>
+        <view class="chip {{filter.status === 'awaiting_confirmation' ? 'active' : ''}}" data-field="status" data-value="awaiting_confirmation" bindtap="setFilter">待确认</view>
+        <view class="chip {{filter.status === 'awaiting_handoff' ? 'active' : ''}}" data-field="status" data-value="awaiting_handoff" bindtap="setFilter">待交接</view>
+        <view class="chip {{filter.status === 'completed' ? 'active' : ''}}" data-field="status" data-value="completed" bindtap="setFilter">已完成</view>
+        <view class="chip {{filter.status === 'archived' ? 'active' : ''}}" data-field="status" data-value="archived" bindtap="setFilter">已归档</view>
+      </view></scroll-view></view>
+      <view class="filter-block"><text class="filter-label">负责人</text><scroll-view scroll-x class="chip-scroll"><view class="chip-line"><view class="chip {{filter.assigneeId === '' ? 'active' : ''}}" data-field="assigneeId" data-value="" bindtap="setFilter">全部</view><view wx:for="{{members}}" wx:key="id" class="chip {{filter.assigneeId === item.id ? 'active' : ''}}" data-field="assigneeId" data-value="{{item.id}}" bindtap="setFilter">{{item.name}}</view></view></scroll-view></view>
+      <view class="filter-block"><text class="filter-label">类型</text><view class="chip-line wrap"><view class="chip {{filter.type === '' ? 'active' : ''}}" data-field="type" data-value="" bindtap="setFilter">全部</view><view class="chip {{filter.type === 'routine' ? 'active' : ''}}" data-field="type" data-value="routine" bindtap="setFilter">日常</view><view class="chip {{filter.type === 'special' ? 'active' : ''}}" data-field="type" data-value="special" bindtap="setFilter">专项</view><view class="chip {{filter.type === 'urgent' ? 'active' : ''}}" data-field="type" data-value="urgent" bindtap="setFilter">紧急</view></view></view>
+      <view class="filter-block"><text class="filter-label">优先级</text><view class="chip-line wrap"><view class="chip {{filter.priority === '' ? 'active' : ''}}" data-field="priority" data-value="" bindtap="setFilter">全部</view><view class="chip {{filter.priority === 'low' ? 'active' : ''}}" data-field="priority" data-value="low" bindtap="setFilter">低</view><view class="chip {{filter.priority === 'normal' ? 'active' : ''}}" data-field="priority" data-value="normal" bindtap="setFilter">普通</view><view class="chip {{filter.priority === 'high' ? 'active' : ''}}" data-field="priority" data-value="high" bindtap="setFilter">高</view></view></view>
+      <view class="filter-block"><text class="filter-label">截止日期</text><view class="chip-line wrap"><view class="chip {{filter.due === '' ? 'active' : ''}}" data-field="due" data-value="" bindtap="setFilter">全部</view><view class="chip {{filter.due === 'overdue' ? 'active' : ''}}" data-field="due" data-value="overdue" bindtap="setFilter">已逾期</view><picker mode="date" bindchange="filterDate"><view class="chip">{{filter.due !== '' && filter.due !== 'overdue' ? filter.due : '选择日期'}}</view></picker></view></view>
+      <view class="section"><text class="section-title">任务列表 <text class="count">{{shownTasks.length}}</text></text><text wx:if="{{!shownTasks.length}}" class="empty">没有符合条件的任务</text><template is="taskRows" data="{{items: shownTasks}}" /></view>
     </view>
-    <view wx:if="{{member.role === 'admin'}}" class="section">
-      <text class="section-title">待审核申请 <text class="count">{{requests.length}}</text></text>
-      <text wx:if="{{!requests.length}}" class="muted">暂无待审核申请</text>
-      <view wx:for="{{requests}}" wx:key="id" class="request-row">
-        <text class="request-name">{{item.name}}</text>
-        <view class="actions">
-          <button size="mini" class="secondary" data-id="{{item.id}}" data-decision="reject" disabled="{{!!busyId}}" bindtap="review">拒绝</button>
-          <button size="mini" class="primary" data-id="{{item.id}}" data-decision="approve" loading="{{busyId === item.id}}" disabled="{{!!busyId}}" bindtap="review">批准</button>
-        </view>
+    <view wx:elif="{{view === 'new'}}" class="form-area">
+      <view wx:if="{{!editing}}" class="mode-line"><view class="mode {{formMode === 'quick' ? 'active' : ''}}" data-mode="quick" bindtap="setFormMode">快速创建</view><view class="mode {{formMode === 'detailed' ? 'active' : ''}}" data-mode="detailed" bindtap="setFormMode">详细创建</view></view>
+      <text wx:if="{{form.parentId}}" class="muted">上级任务：{{formParentName}}</text>
+      <text class="label">任务标题 *</text><input class="field" maxlength="100" placeholder="输入任务标题" value="{{form.title}}" data-field="title" bindinput="formInput" />
+      <text class="label">负责人 *</text><view class="chip-line wrap"><view wx:for="{{members}}" wx:key="id" class="chip {{form.assigneeId === item.id ? 'active' : ''}}" data-field="assigneeId" data-value="{{item.id}}" bindtap="chooseField">{{item.name}}</view></view>
+      <block wx:if="{{formMode === 'detailed'}}">
+        <text class="label">任务说明</text><textarea class="field description" maxlength="2000" placeholder="填写目标与要求" value="{{form.description}}" data-field="description" bindinput="formInput" />
+        <text class="label">协作人</text><checkbox-group bindchange="collaboratorsChange"><label wx:for="{{formMembers}}" wx:key="id" class="check-row"><checkbox value="{{item.id}}" checked="{{item.checked}}" color="#18745b" />{{item.name}}</label></checkbox-group>
+        <text class="label">任务类型</text><view class="chip-line wrap"><view class="chip {{form.type === 'routine' ? 'active' : ''}}" data-field="type" data-value="routine" bindtap="chooseField">日常</view><view class="chip {{form.type === 'special' ? 'active' : ''}}" data-field="type" data-value="special" bindtap="chooseField">专项</view><view class="chip {{form.type === 'urgent' ? 'active' : ''}}" data-field="type" data-value="urgent" bindtap="chooseField">紧急</view></view>
+        <text class="label">优先级</text><view class="chip-line wrap"><view class="chip {{form.priority === 'low' ? 'active' : ''}}" data-field="priority" data-value="low" bindtap="chooseField">低</view><view class="chip {{form.priority === 'normal' ? 'active' : ''}}" data-field="priority" data-value="normal" bindtap="chooseField">普通</view><view class="chip {{form.priority === 'high' ? 'active' : ''}}" data-field="priority" data-value="high" bindtap="chooseField">高</view></view>
+        <text class="label">截止日期</text><view class="chip-line wrap"><picker mode="date" value="{{form.dueDate}}" bindchange="formDate"><view class="field date-field">{{form.dueDate || '选择日期'}}</view></picker><view wx:if="{{form.dueDate}}" class="chip" data-field="dueDate" data-value="" bindtap="chooseField">清除</view></view>
+        <text class="label">状态</text><text class="muted">进行中</text>
+        <view wx:if="{{!editing}}"><text class="label">上级任务</text><view class="chip-line wrap"><view class="chip {{form.parentId === '' ? 'active' : ''}}" data-field="parentId" data-value="" bindtap="chooseField">无</view><block wx:for="{{tasks}}" wx:key="_id"><view wx:if="{{item.depth < 3}}" class="chip {{form.parentId === item._id ? 'active' : ''}}" data-field="parentId" data-value="{{item._id}}" bindtap="chooseField">{{item.title}}</view></block></view></view>
+        <text class="label">确认规则</text><view class="chip-line wrap"><view class="chip {{form.confirmationRule === 'ordinary' ? 'active' : ''}}" data-field="confirmationRule" data-value="ordinary" bindtap="chooseField">普通</view><view class="chip {{form.confirmationRule === 'important' ? 'active' : ''}}" data-field="confirmationRule" data-value="important" bindtap="chooseField">重要</view><view class="chip {{form.confirmationRule === 'major' ? 'active' : ''}}" data-field="confirmationRule" data-value="major" bindtap="chooseField">重大</view></view>
+        <view wx:if="{{form.confirmationRule === 'important'}}"><text class="label">指定确认人 *</text><view class="chip-line wrap"><view wx:for="{{members}}" wx:key="id" class="chip {{form.confirmerId === item.id ? 'active' : ''}}" data-field="confirmerId" data-value="{{item.id}}" bindtap="chooseField">{{item.name}}</view></view></view>
+      </block>
+      <button class="primary save" loading="{{loading}}" disabled="{{loading}}" bindtap="saveTask">{{editing ? '保存修改' : '创建任务'}}</button>
+    </view>
+    <view wx:elif="{{view === 'detail' && selectedTask}}">
+      <view class="detail-head"><text class="detail-title">{{selectedTask.title}}</text><text class="status">{{selectedTask.statusName}}</text></view>
+      <view class="detail-grid"><text>负责人</text><text>{{selectedTask.assigneeName}}</text><text>协作人</text><text>{{selectedTask.collaboratorNames}}</text><text>创建人</text><text>{{selectedTask.creatorName}}</text><text>进度</text><text>{{progressText}}{{children.length ? '（已完成 ' + (execution ? execution.completedChildren : 0) + '/' + children.length + ' 个子任务）' : ''}}</text><text>类型 / 优先级</text><text>{{selectedTask.typeName}} / {{selectedTask.priorityName}}</text><text>截止日期</text><text>{{selectedTask.dueDate || '未设置'}}</text><text>确认规则</text><text>{{selectedTask.confirmationRule === 'ordinary' ? '普通' : selectedTask.confirmationRule === 'important' ? '重要' : '重大'}}</text><text wx:if="{{selectedTask.confirmationRule === 'important'}}">指定确认人</text><text wx:if="{{selectedTask.confirmationRule === 'important'}}">{{selectedTask.confirmerName}}</text><text>上级任务</text><text>{{selectedTask.parentName}}</text><text>任务层级</text><text>第 {{selectedTask.depth}} 级</text><text wx:if="{{selectedTask.aiRequestId}}">执行顺序</text><text wx:if="{{selectedTask.aiRequestId}}">第 {{selectedTask.executionOrder}} 项 {{selectedTask.orderNote}}</text><text wx:if="{{selectedTask.risk}}">潜在风险</text><text wx:if="{{selectedTask.risk}}">{{selectedTask.risk}}</text></view>
+      <view wx:if="{{selectedTask.description}}" class="detail-description">{{selectedTask.description}}</view>
+      <button wx:if="{{selectedTask.status !== 'awaiting_handoff' && (selectedTask.depth > 1 || selectedTask.creatorId === member.id || member.role === 'admin')}}" class="secondary" bindtap="startEdit">编辑任务</button>
+      <view class="fold" data-section="children" bindtap="toggleSection"><text>子任务 <text class="count">{{children.length}}</text></text><text>{{expanded.children ? '−' : '+'}}</text></view><view wx:if="{{expanded.children}}"><template is="taskRows" data="{{items: children}}" /><button wx:if="{{selectedTask.depth < 3}}" class="secondary" data-parent="{{selectedTask._id}}" bindtap="startCreate">添加子任务</button></view>
+      <view class="fold" data-section="records" bindtap="toggleSection"><text>执行记录 <text class="count">{{execution.records.length || 0}}</text></text><text>{{expanded.records ? '−' : '+'}}</text></view>
+      <view wx:if="{{expanded.records}}" class="fold-body"><text wx:if="{{!canAccessExecution}}" class="empty">仅任务参与人可查看</text><block wx:else><text wx:if="{{!execution.records.length}}" class="empty">暂无执行记录</text><view wx:for="{{execution.records}}" wx:key="_id" class="record-row"><text>{{item.text}}</text><text class="task-meta">{{item.actorName}} · {{item.displayTime}}</text></view><block wx:if="{{canAddNote}}"><textarea class="field description" maxlength="2000" placeholder="记录进展或说明上级任务进度" value="{{noteText}}" bindinput="noteInput" /><button class="primary" disabled="{{loading || !noteText}}" loading="{{loading}}" bindtap="addExecutionNote">提交记录</button></block><view wx:if="{{selectedTask.assigneeId === member.id && selectedTask.status !== 'awaiting_handoff'}}" class="status-actions"><button wx:if="{{selectedTask.status !== 'in_progress' && selectedTask.status !== 'archived'}}" class="secondary" disabled="{{loading}}" data-status="in_progress" bindtap="changeExecutionStatus">开始执行</button><button wx:if="{{selectedTask.status !== 'completed' && selectedTask.status !== 'archived'}}" class="secondary" disabled="{{loading}}" data-status="completed" bindtap="changeExecutionStatus">标记完成</button></view></block></view>
+      <view class="fold" data-section="handoff" bindtap="toggleSection"><text>交接 <text class="count">{{execution.handoffs.length || 0}}</text></text><text>{{expanded.handoff ? '−' : '+'}}</text></view>
+      <view wx:if="{{expanded.handoff}}" class="fold-body">
+        <text wx:if="{{!canAccessExecution}}" class="empty">仅交接双方和任务参与人可查看</text>
+        <block wx:else>
+          <button wx:if="{{selectedTask.status === 'in_progress' && selectedTask.assigneeId === member.id}}" class="secondary" disabled="{{loading}}" bindtap="startHandoff">发起交接</button>
+          <text wx:if="{{!execution.handoffs.length}}" class="empty">暂无交接记录</text>
+          <view wx:for="{{execution.handoffs}}" wx:key="_id" class="handoff-item">
+            <text class="handoff-title">{{item.fromName}} → {{item.successorName}} · {{item.status === 'draft' ? '待填写' : item.status === 'submitted' ? '待接任' : '已接收'}}</text>
+            <text class="task-meta">{{item.displayTime}}</text>
+            <block wx:if="{{item.status !== 'draft'}}"><text>当前进度：{{item.currentProgress}}</text><text>已完成：{{item.completedWork}}</text><text>未完成：{{item.unfinishedWork}}</text><text>下一步：{{item.nextAction}}</text><text>风险与说明：{{item.risks}}</text><text wx:if="{{item.attachmentNames}}">关联附件：{{item.attachmentNames}}</text></block>
+          </view>
+          <view wx:if="{{pendingHandoff && pendingHandoff.status === 'draft' && selectedTask.assigneeId === member.id}}" class="handoff-form">
+            <text class="label">当前进度 *</text><textarea class="field description" maxlength="2000" data-field="currentProgress" value="{{handoffForm.currentProgress}}" bindinput="handoffInput" />
+            <text class="label">已完成工作 *</text><textarea class="field description" maxlength="2000" data-field="completedWork" value="{{handoffForm.completedWork}}" bindinput="handoffInput" />
+            <text class="label">未完成工作 *</text><textarea class="field description" maxlength="2000" data-field="unfinishedWork" value="{{handoffForm.unfinishedWork}}" bindinput="handoffInput" />
+            <text class="label">下一步动作 *</text><textarea class="field description" maxlength="2000" data-field="nextAction" value="{{handoffForm.nextAction}}" bindinput="handoffInput" />
+            <text class="label">风险与说明 *</text><textarea class="field description" maxlength="2000" data-field="risks" value="{{handoffForm.risks}}" bindinput="handoffInput" />
+            <text class="label">指定接任人（可选）</text><view class="chip-line wrap"><view class="chip {{!handoffForm.successorId ? 'active' : ''}}" data-id="" bindtap="handoffSuccessor">办公室成员均可接任</view><block wx:for="{{members}}" wx:key="id"><view wx:if="{{item.id !== member.id}}" class="chip {{handoffForm.successorId === item.id ? 'active' : ''}}" data-id="{{item.id}}" bindtap="handoffSuccessor">{{item.name}}</view></block></view>
+            <text wx:if="{{execution.attachments.length}}" class="label">关联任务附件（可选）</text><checkbox-group wx:if="{{execution.attachments.length}}" bindchange="handoffAttachments"><label wx:for="{{execution.attachments}}" wx:key="_id" class="check-row"><checkbox value="{{item._id}}" color="#18745b" />{{item.name}}</label></checkbox-group>
+            <button class="primary" disabled="{{loading}}" loading="{{loading}}" bindtap="submitHandoff">提交交接</button>
+          </view>
+          <button wx:if="{{pendingHandoff && pendingHandoff.status === 'submitted' && pendingHandoff.fromId !== member.id && (!pendingHandoff.successorId || pendingHandoff.successorId === member.id)}}" class="primary" disabled="{{loading}}" loading="{{loading}}" bindtap="acceptHandoff">确认接收任务</button>
+        </block>
+      </view>
+      <view class="fold" data-section="attachments" bindtap="toggleSection"><text>附件 <text class="count">{{execution.attachments.length || 0}}</text></text><text>{{expanded.attachments ? '−' : '+'}}</text></view><view wx:if="{{expanded.attachments}}" class="fold-body"><text wx:if="{{!canAccessExecution}}" class="empty">仅任务参与人可查看</text><block wx:else><text wx:if="{{!execution.attachments.length}}" class="empty">暂无附件</text><view wx:for="{{execution.attachments}}" wx:key="_id" class="record-row" data-id="{{item._id}}" bindtap="openExecutionFile"><text class="file-name">{{item.name}}</text><text class="task-meta">{{item.displayTime}}</text></view><button class="secondary" disabled="{{loading || execution.attachments.length >= 50}}" bindtap="chooseExecutionFile">上传图片或文档</button></block></view>
+      <view class="fold" data-section="logs" bindtap="toggleSection"><text>操作日志</text><text>{{expanded.logs ? '−' : '+'}}</text></view><view wx:if="{{expanded.logs}}" class="fold-body"><text wx:if="{{!canAccessExecution}}" class="empty">仅任务参与人可查看</text><block wx:else><text wx:if="{{!execution.history.length}}" class="empty">暂无操作日志</text><view wx:for="{{execution.history}}" wx:key="_id" class="record-row"><text>{{item.action === 'status_changed' ? '状态更新：' + item.fromName + ' → ' + item.toName : item.action === 'attachment_added' ? '上传附件：' + item.name : item.actionName}}</text><text class="task-meta">{{item.actorName}} · {{item.displayTime}}</text></view></block></view>
+      <view class="fold" data-section="ai" bindtap="toggleSection"><text>AI 拆解</text><text>{{expanded.ai ? '−' : '+'}}</text></view>
+      <view wx:if="{{expanded.ai}}" class="ai-area">
+        <text wx:if="{{selectedTask.depth >= 3}}" class="empty">第三级任务不能继续拆解</text>
+        <block wx:else>
+          <block wx:if="{{!aiDraft}}">
+            <text class="label">补充说明</text><textarea class="field description" maxlength="2000" placeholder="可补充背景与要求" value="{{aiContext}}" bindinput="aiContextInput" />
+            <view class="ai-attachment"><button class="secondary" size="mini" bindtap="chooseAiAttachment">选择文本附件</button><text wx:if="{{aiAttachment}}" class="muted">{{aiAttachment.name}}</text><button wx:if="{{aiAttachment}}" class="secondary" size="mini" bindtap="clearAiAttachment">移除</button></view>
+            <button class="primary" loading="{{loading}}" disabled="{{loading}}" bindtap="generateAi">生成拆解建议</button>
+          </block>
+          <block wx:else>
+            <view wx:for="{{aiDraft.suggestions}}" wx:key="clientId" class="ai-item">
+              <view class="ai-item-head"><text class="section-title">建议 {{index + 1}}</text><button class="secondary" size="mini" data-index="{{index}}" bindtap="removeAiSuggestion">移除</button></view>
+              <text class="label">标题 *</text><input class="field" maxlength="100" value="{{item.title}}" data-index="{{index}}" data-field="title" bindinput="aiInput" />
+              <text class="label">说明</text><textarea class="field description" maxlength="2000" value="{{item.description}}" data-index="{{index}}" data-field="description" bindinput="aiInput" />
+              <text class="label">负责人 *</text><picker range="{{members}}" range-key="name" data-index="{{index}}" bindchange="aiAssignee"><view class="field">{{item.assigneeName}}</view></picker>
+              <text class="label">建议截止日期</text><view class="chip-line wrap"><picker mode="date" value="{{item.dueDate}}" data-index="{{index}}" bindchange="aiDate"><view class="field date-field">{{item.dueDate || '选择日期'}}</view></picker><view wx:if="{{item.dueDate}}" class="chip" data-index="{{index}}" data-field="dueDate" bindtap="clearAiDate">清除</view></view>
+              <text class="label">执行顺序</text><input class="field" maxlength="300" value="{{item.orderNote}}" data-index="{{index}}" data-field="orderNote" bindinput="aiInput" />
+              <text class="label">潜在风险</text><input class="field" maxlength="300" value="{{item.risk}}" data-index="{{index}}" data-field="risk" bindinput="aiInput" />
+            </view>
+            <button wx:if="{{aiDraft.suggestions.length < 8}}" class="secondary" bindtap="addAiSuggestion">添加建议</button>
+            <view class="ai-actions"><button class="secondary" disabled="{{loading}}" bindtap="cancelAi">取消</button><button class="primary" loading="{{loading}}" disabled="{{loading || !aiDraft.suggestions.length}}" bindtap="confirmAi">确认并创建子任务</button></view>
+          </block>
+        </block>
       </view>
     </view>
-  </view>
+    <view wx:elif="{{view === 'me'}}">
+      <view class="section welcome"><view><text class="section-title">{{member.name}}</text><text class="muted">{{member.role === 'admin' ? '管理员' : '办公室成员'}}</text></view><button class="refresh" aria-label="刷新" bindtap="refresh">↻</button></view>
+      <view class="section"><text class="section-title">办公室成员 <text class="count">{{members.length}} / 5</text></text><view wx:for="{{members}}" wx:key="id" class="row"><text>{{item.name}}</text><text class="muted">{{item.role === 'admin' ? '管理员' : '成员'}}</text></view></view>
+      <view wx:if="{{member.role === 'admin'}}" class="section"><text class="section-title">待审核申请 <text class="count">{{requests.length}}</text></text><text wx:if="{{!requests.length}}" class="empty">暂无待审核申请</text><view wx:for="{{requests}}" wx:key="id" class="request-row"><text class="request-name">{{item.name}}</text><view class="actions"><button size="mini" class="secondary" data-id="{{item.id}}" data-decision="reject" disabled="{{!!busyId}}" bindtap="review">拒绝</button><button size="mini" class="primary" data-id="{{item.id}}" data-decision="approve" loading="{{busyId === item.id}}" disabled="{{!!busyId}}" bindtap="review">批准</button></view></view></view>
+    </view>
+    <view class="bottom-nav"><view class="nav-item {{view === 'workbox' ? 'current' : ''}}" data-view="workbox" bindtap="switchView">工作箱</view><view class="nav-item {{view === 'tasks' || view === 'detail' ? 'current' : ''}}" data-view="tasks" bindtap="switchView">任务</view><view class="nav-item {{view === 'new' ? 'current' : ''}}" data-view="new" bindtap="switchView">新建</view><view class="nav-item {{view === 'me' ? 'current' : ''}}" data-view="me" bindtap="switchView">我的</view></view>
+  </block>
 </view>

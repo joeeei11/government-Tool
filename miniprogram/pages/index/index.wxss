@@ -20,3 +20,57 @@ button.secondary { color: #174d3d; background: #e8f1ec; }
 .request-name { max-width: 36%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { gap: 12rpx; }
 .actions button { margin: 0; min-width: 104rpx; }
+.page { padding-bottom: 160rpx; }
+.heading { margin-bottom: 32rpx; }
+.section { padding: 28rpx 0; }
+.empty { display: block; padding: 24rpx 0 8rpx; color: #74817a; font-size: 26rpx; }
+.task-row { padding: 22rpx 0; border-bottom: 1rpx solid #e8edeb; }
+.task-line, .detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16rpx; }
+.task-title { display: block; min-width: 0; flex: 1; color: #172720; font-size: 30rpx; font-weight: 550; overflow-wrap: anywhere; }
+.task-meta { display: block; margin-top: 8rpx; color: #66746d; font-size: 24rpx; }
+.status { flex: none; color: #18745b; font-size: 24rpx; }
+.filter-block { padding: 16rpx 0; border-top: 1rpx solid #e3e9e5; }
+.filter-label { display: block; margin-bottom: 14rpx; color: #66746d; font-size: 24rpx; }
+.chip-scroll { width: 100%; white-space: nowrap; }
+.chip-line { display: flex; align-items: center; gap: 12rpx; }
+.chip-line.wrap { flex-wrap: wrap; }
+.chip { flex: none; padding: 13rpx 20rpx; border: 1rpx solid #d6e0da; border-radius: 8rpx; background: #fff; color: #365146; font-size: 25rpx; line-height: 36rpx; }
+.chip.active, .mode.active { border-color: #18745b; background: #e8f1ec; color: #14533f; font-weight: 600; }
+.bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; padding-bottom: env(safe-area-inset-bottom); border-top: 1rpx solid #dbe2df; background: #fff; z-index: 5; }
+.nav-item { flex: 1; min-height: 94rpx; display: flex; align-items: center; justify-content: center; color: #64736a; font-size: 26rpx; }
+.nav-item.current { color: #146448; font-weight: 600; border-top: 4rpx solid #18745b; }
+.mode-line { display: flex; border: 1rpx solid #d6e0da; border-radius: 8rpx; overflow: hidden; }
+.mode { flex: 1; padding: 22rpx 0; text-align: center; color: #365146; font-size: 28rpx; }
+.mode + .mode { border-left: 1rpx solid #d6e0da; }
+.form-area .label { margin-top: 30rpx; }
+.field { box-sizing: border-box; width: 100%; min-height: 86rpx; padding: 19rpx 22rpx; border: 1rpx solid #cbd7d0; border-radius: 8rpx; background: #fff; font-size: 28rpx; }
+.description { height: 180rpx; }
+.date-field { width: auto; min-width: 210rpx; }
+.check-row { display: inline-flex; align-items: center; min-height: 78rpx; margin-right: 28rpx; font-size: 27rpx; }
+.save { margin-top: 48rpx !important; }
+.detail-head { padding: 18rpx 0 24rpx; }
+.detail-title { min-width: 0; font-size: 36rpx; font-weight: 600; overflow-wrap: anywhere; }
+.detail-grid { display: grid; grid-template-columns: 200rpx 1fr; row-gap: 18rpx; padding: 25rpx 0; border-top: 1rpx solid #dbe2df; font-size: 27rpx; }
+.detail-grid text:nth-child(odd) { color: #66746d; }
+.detail-grid text { overflow-wrap: anywhere; }
+.detail-description { padding: 24rpx 0; border-top: 1rpx solid #dbe2df; white-space: pre-wrap; font-size: 28rpx; }
+.fold { display: flex; justify-content: space-between; align-items: center; min-height: 96rpx; border-bottom: 1rpx solid #dbe2df; font-size: 29rpx; font-weight: 550; }
+.ai-area { padding: 12rpx 0 28rpx; }
+.ai-attachment, .ai-item-head, .ai-actions { display: flex; align-items: center; gap: 14rpx; }
+.ai-attachment { flex-wrap: wrap; margin-top: 20rpx; }
+.ai-attachment button, .ai-item-head button { margin: 0; }
+.ai-item { padding: 26rpx 0 36rpx; border-bottom: 1rpx solid #dbe2df; }
+.ai-item-head { justify-content: space-between; }
+.ai-item-head .section-title { font-size: 30rpx; }
+.ai-actions button { flex: 1; min-width: 0; }
+.fold-body { padding: 12rpx 0 26rpx; }
+.record-row { padding: 20rpx 0; border-bottom: 1rpx solid #e8edeb; font-size: 27rpx; overflow-wrap: anywhere; }
+.record-row text { display: block; }
+.record-row .task-meta { margin-top: 8rpx; }
+.file-name { color: #14533f; }
+.status-actions { display: flex; gap: 12rpx; }
+.status-actions button { flex: 1; min-width: 0; }
+.handoff-item { padding: 22rpx 0; border-bottom: 1rpx solid #e8edeb; font-size: 27rpx; overflow-wrap: anywhere; }
+.handoff-item text { display: block; margin-top: 10rpx; white-space: pre-wrap; }
+.handoff-item .handoff-title { margin-top: 0; font-weight: 600; color: #172720; }
+.handoff-form { padding: 12rpx 0 26rpx; }
